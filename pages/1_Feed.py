@@ -159,7 +159,7 @@ if authentication_status:
         with st.form("Search Messages"):
             text_search = st.text_input("Search for text in the Message").lower()
             user_search = st.selectbox("Search by User", options=all_users_list, index=None)
-            search = st.form_submit_button("Search")
+            search = st.form_submit_button("Search", type="primary")
 
         filtered_messages = all_messages.copy()
 
