@@ -55,7 +55,7 @@ def signUp():
         st.session_state["authenticator"].logout(location="sidebar")
     else:
         with st.form("User Creation"):
-            username = st.text_input("Choose a username")
+            username = st.text_input("Choose a username").lower()
             password = st.text_input("Create a password", type = "password")
             password_confirm = st.text_input("Confirm password", type = "password")
             submitted = st.form_submit_button("Submit")
@@ -69,7 +69,7 @@ def signUp():
                 st.warning("Please enter a username")
                 st.stop()
 
-            elif existing_user_data["Username"].str.contains(username).any():
+            elif existing_user_data["Username"].isin([username]).any():
                 st.warning("That username is already taken")
 
             elif password == "":
