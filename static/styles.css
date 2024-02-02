@@ -1,0 +1,26 @@
+.user-line {
+    word-break: break-word;
+    margin: 0px;
+    font-family: "Source Sans Pro", sans-serif;
+    color: rgb(31, 227, 56, 1);
+}
+
+.chat-bubble {
+    background-color: rgba(38, 40, 44, 1); /* Light gray background */
+    border: 1px solid rgba(38, 40, 44, 1); /* Gray border */
+    border-radius: 10px; /* Rounded corners */
+    padding-bottom: 0px; /* Inner padding */
+    padding-top: 10px;
+    padding-left: 20px;
+    padding-right: 20px;
+    margin: -10px 0px 20px 30px;
+    font-family: sans-serif; /* Consistent font */
+    resize: none; /* Prevent resizing (optional) */
+    color: rgb(250, 250, 250);
+
+
+}
+
+.chat-bubble p, .chat-bubble strong, .user-line p, .user-line strong {
+    font-size: 14px;
+}
