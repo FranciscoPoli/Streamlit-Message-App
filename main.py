@@ -12,6 +12,30 @@ def load_css():
         st.markdown(css, unsafe_allow_html=True)
 
 
+def is_invalid_username(username):
+    # Check username for invalid characters
+    return any(char in username for char in [" ", "*", "/", "{", "}", "[", "]", "|", "\\", "?", "!",
+                                           "(", ")", "@", "#", "$", "%", "^", "&", "\"", "'", ":",
+                                            ";", "<", ">", ",", ".", "\n", "\t", "-", "=", "+", "¿",
+                                            "°", "¬", "´", "`", "~", "¡"]
+                )
+
+
+
+
+def preserve_username():
+    # Get original Username as the User created it (with Caps if it has any) since authenticator only returns all in lower caps
+    found = st.session_state["existing_user_data"]["Username"].str.lower().isin([st.session_state['username']])
+
+    if found.any():
+        # Get the index of the matching username
+        index_of_username = found[found == True].index[0]
+        # Retrieve the original username with preserved capitalization
+        original_username = st.session_state["existing_user_data"].loc[index_of_username, "Username"]
+        # Save original username in session state.  st.session_state["username"] is used by authenticator.logout so we can't overwrite it
+        st.session_state["original_username"] = original_username
+
+
 def inputs_unchanged(usernames, passwords):
     # Initialize session states to compare in future runs
     if "username_list" not in st.session_state:
@@ -27,25 +51,23 @@ def st_authentication():
     # Fetch data if not already in session state
     if "existing_user_data" not in st.session_state:
         st.session_state["existing_user_data"] = conn.read(worksheet="Users", usecols=list(range(3)), ttl=5).dropna(how="all")
-    # existing_user_data = conn.read(worksheet="Users", usecols=list(range(3)), ttl=5).dropna(how="all")
+
     existing_user_data = st.session_state["existing_user_data"]
 
     usernames = existing_user_data["Username"].tolist()
     passwords = existing_user_data["Password"].tolist()
-
-    unchanged = inputs_unchanged(usernames, passwords)
 
     # create dictionary to pass credentials to stauth.Authenticate
     credentials = {"usernames": {}}
     for username, password in zip(usernames, passwords):
         credentials["usernames"][username] = {"password": password, "name": ""}
 
-    if "authenticator" not in st.session_state or not unchanged:
+    # Save authenticator in session state so it doesn't have to load in every run, unless there are changes or new users
+    if "authenticator" not in st.session_state or not inputs_unchanged(usernames, passwords):
         authenticator = stauth.Authenticate(credentials, cookie_name="Practice_Twitter", key="uihlkoadfi54",
                                         cookie_expiry_days=0.2)
         st.session_state["authenticator"] = authenticator
-    # if "authenticator" not in st.session_state:
-    #     st.session_state["authenticator"] = authenticator
+
 
 
 def signUp():
@@ -55,7 +77,8 @@ def signUp():
         st.session_state["authenticator"].logout(location="sidebar")
     else:
         with st.form("User Creation"):
-            username = st.text_input("Choose a username").lower()
+            st.markdown("   ")
+            username = st.text_input("Choose a username")
             password = st.text_input("Create a password", type = "password")
             password_confirm = st.text_input("Confirm password", type = "password")
             submitted = st.form_submit_button("Submit")
@@ -69,8 +92,13 @@ def signUp():
                 st.warning("Please enter a username")
                 st.stop()
 
+            elif is_invalid_username(username):
+                st.warning("Please avoid spaces and special characters in the username.  Only letters, numbers and _ are allowed")
+                st.stop()
+
             elif existing_user_data["Username"].isin([username]).any():
                 st.warning("That username is already taken")
+                st.stop()
 
             elif password == "":
                 st.warning("Please enter a password")
@@ -81,8 +109,8 @@ def signUp():
                 st.stop()
 
             else:
-                password_list = []
-                password_list.append(password)
+                # Only 1 password is passed to Hasher but it has to be in a list
+                password_list = [password]
                 hashed_passwords = stauth.Hasher(password_list).generate()
                 new_user_data = pd.DataFrame(
                     [
@@ -106,12 +134,11 @@ def signUp():
 def logIn():
 
     st_authentication()
-    st.session_state["authenticator"].login(fields={'Form name': 'Login'}, location="main")
+    st.session_state["authenticator"].login(fields={'Form name': ''}, location="main")
+
 
     if st.session_state["authentication_status"]:
         st.session_state["authenticator"].logout(location="sidebar")
-        st.write(f'Welcome *{st.session_state["username"]}*')
-        st.title('Some content')
     elif st.session_state["authentication_status"] is False:
         st.error('Username/password is incorrect')
     elif st.session_state["authentication_status"] is None:
@@ -141,7 +168,9 @@ if st.session_state["authentication_status"]:
     st.session_state["authenticator"].logout(location="sidebar")
     # hide_pages(["Login"])
     # st.switch_page("pages/1_Feed.py")
-    st.markdown("You are already logged in")
+    preserve_username()
+    st.markdown(f"You are already logged in :blue[{st.session_state['original_username']}]")
+
 
 else:
     # hide_pages(["Feed", "My Messages", "Follow Requests", "My Profile"])

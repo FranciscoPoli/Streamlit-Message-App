@@ -32,7 +32,7 @@ def change_like_status(message_ID):
         existing_message_data.loc[existing_message_data["Message ID"] == message_ID, "Like Count"] = like_count
         existing_like_data = existing_like_data.loc[(existing_like_data["Message ID"] != message_ID)
                                                     | ((existing_like_data["Message ID"] == message_ID)
-                                                    & (existing_like_data["Username"] != st.session_state["username"]))
+                                                    & (existing_like_data["Username"] != st.session_state["original_username"]))
                                                     ]
     else:
         # Increase like count and add like
@@ -40,7 +40,7 @@ def change_like_status(message_ID):
         existing_message_data.loc[existing_message_data["Message ID"] == message_ID, "Like Count"] = like_count
         new_like_data = pd.DataFrame(
             [
-                {"Username": st.session_state["username"],
+                {"Username": st.session_state["original_username"],
                  "Message ID": message_ID}
             ]
         )
@@ -63,7 +63,7 @@ authentication_status = st.session_state.get("authentication_status", False)
 if authentication_status:
     st.session_state["authenticator"].logout(location="sidebar")
 
-    st.write(f'Username: :blue[{st.session_state["username"]}]')
+    st.write(f'Username: :blue[{st.session_state["original_username"]}]')
     tab1, tab2, tab3 = st.tabs(["Feed", "Liked Messages", "Search for Message"])
 
     # Fetch data if not already in session state
@@ -84,18 +84,18 @@ if authentication_status:
     # Initialize like status from Google Sheets
     for message_ID in existing_like_data["Message ID"]:
         # Check like status directly in the dataframe
-        like_status = existing_like_data.loc[(existing_like_data["Username"] == st.session_state["username"]) & (existing_like_data["Message ID"] == message_ID)].shape[0] > 0
+        like_status = existing_like_data.loc[(existing_like_data["Username"] == st.session_state["original_username"]) & (existing_like_data["Message ID"] == message_ID)].shape[0] > 0
 
         # Add the value to the session state
         st.session_state[f"like_status{message_ID}"] = like_status
 
     with tab1:
         # List of likes from the user
-        current_user_likes = existing_like_data.query(f"Username == '{st.session_state['username']}'")
+        current_user_likes = existing_like_data.query(f"Username == '{st.session_state['original_username']}'")
         current_user_likes_list = current_user_likes["Message ID"].tolist()
 
         # Search for Followed Users
-        current_followed_users = existing_follow_data.query(f"`Follower ID` == '{st.session_state['username']}' and `Follow Status` == 'Accepted'")
+        current_followed_users = existing_follow_data.query(f"`Follower ID` == '{st.session_state['original_username']}' and `Follow Status` == 'Accepted'")
         current_followed_users_list = current_followed_users["Followed User"].tolist()
 
         # Search for public Users
@@ -103,7 +103,7 @@ if authentication_status:
         public_users_list = public_users["Username"].tolist()  # Convert Series to list
 
         # Combine public and followed users, removing duplicates
-        all_users_list = list(set(public_users_list + current_followed_users_list + [st.session_state['username']]))
+        all_users_list = list(set(public_users_list + current_followed_users_list + [st.session_state['original_username']]))
 
         # Search for messages from the combined list of users
         all_messages = existing_message_data.loc[existing_message_data['Username'].isin(all_users_list)]
@@ -118,7 +118,7 @@ if authentication_status:
             div = show_message(username, message, like_count)
 
             #Show Like and Follow buttons
-            col1, col2 = st.columns([10, 1])
+            col1, col2 = st.columns([10, 1.5])
 
             with col2:
                 # Retrieve like status from session state
@@ -142,7 +142,7 @@ if authentication_status:
                 div = show_message(username, message, like_count)
 
                 # Show Like buttons
-                col1, col2 = st.columns([10, 1])
+                col1, col2 = st.columns([10, 1.5])
 
                 with col2:
                     # Retrieve like status from session state
@@ -159,7 +159,7 @@ if authentication_status:
         with st.form("Search Messages"):
             text_search = st.text_input("Search for text in the Message").lower()
             user_search = st.selectbox("Search by User", options=all_users_list, index=None)
-            search = st.form_submit_button("Search", type="primary")
+            search = st.form_submit_button("Search")
 
         filtered_messages = all_messages.copy()
 
@@ -176,7 +176,7 @@ if authentication_status:
             show_message(row['Username'], row['Message'], row['Like Count'])
 
             # Show Like buttons
-            col1, col2 = st.columns([10, 1])
+            col1, col2 = st.columns([10, 1.5])
 
             with col2:
                 # Retrieve like status from session state

@@ -11,25 +11,34 @@ def create_follow_request(user_to_follow):
     # Retrieve existing follow data
     existing_follow_data = st.session_state["existing_follow_data"]
 
-    # Create new follow request data
-    new_follow_request = pd.DataFrame(
-        [
-            {
-                "Follower ID": st.session_state["username"],
-                "Followed User": user_to_follow,
-                "Follow Status": "Pending",
-            }
-        ]
-    )
+    # Check for existing request with the same User IDs
+    matching_request = existing_follow_data[((existing_follow_data["Follower ID"] == st.session_state["original_username"]) &
+                                            (existing_follow_data["Followed User"] == user_to_follow))]
 
-    # Append new request to existing data
-    existing_follow_data = pd.concat([existing_follow_data, new_follow_request], ignore_index=True)
-    # Update session state with latest data
+    if not matching_request.empty:
+        # Update existing request status to "Pending"
+        index_to_update = matching_request.index[0]
+        existing_follow_data.loc[index_to_update, "Follow Status"] = "Pending"
+        st.success(f"Request to {user_to_follow} has been updated to Pending")
+    else:
+        # Create new request data
+        new_follow_request = pd.DataFrame(
+            [
+                {
+                    "Follower ID": st.session_state["original_username"],
+                    "Followed User": user_to_follow,
+                    "Follow Status": "Pending",
+                }
+            ]
+        )
+
+        # Append new request to existing data
+        existing_follow_data = pd.concat([existing_follow_data, new_follow_request], ignore_index=True)
+        st.success(f"Request sent to {user_to_follow}")
+
+    # Update session state and Google Sheets
     st.session_state["existing_follow_data"] = existing_follow_data
-    # Update Google Sheets with modified data
     conn.update(worksheet="Follows", data=existing_follow_data)
-
-    st.success(f"Request sent to {user_to_follow}")
 
 
 
@@ -40,7 +49,7 @@ authentication_status = st.session_state.get("authentication_status", False)
 if authentication_status:
     st.session_state["authenticator"].logout(location="sidebar")
 
-    st.write(f'Username: :blue[{st.session_state["username"]}]')
+    st.write(f'Username: :blue[{st.session_state["original_username"]}]')
 
     tab1, tab2, tab3 = st.tabs(["Follow Requests", "Users you Follow", "Search for User"])
 
@@ -55,12 +64,10 @@ if authentication_status:
 
     with tab1:
         # List of pending follow requests for the user
-        current_user_follows = existing_follow_data.query(f"`Followed User` == '{st.session_state['username']}' and `Follow Status` == 'Pending'")
+        current_user_follows = existing_follow_data.query(f"`Followed User` == '{st.session_state['original_username']}' and `Follow Status` == 'Pending'")
 
         if current_user_follows.empty is False:
             st.markdown("You have requests of people to follow you!")
-            # follower_IDs = current_user_follows['Follower ID']
-            # for follower_ID in follower_IDs:
 
             i = 0
             columns = st.columns(2)
@@ -68,7 +75,7 @@ if authentication_status:
             for index, row in current_user_follows.iterrows():
                 follower_ID = row['Follower ID']
 
-                with columns[i % 2]:
+                with columns[i % 2]:  # Alternate the messages between 2 columns
                     div = f"""
                                 <div class="user-line">
                                     <p><span style="color: white;">User: </span><strong>{follower_ID}</strong></p>
@@ -78,7 +85,7 @@ if authentication_status:
                                 </div>
                             """
                     st.markdown(div, unsafe_allow_html=True)
-                    _, col1, col2 = st.columns([6,2,2])
+                    _, col1, col2 = st.columns([6,2.5,2.5])
                     with col1:
                         accept = st.button("ACCEPT", key=f"accept_{follower_ID}_{index}")
 
@@ -104,7 +111,7 @@ if authentication_status:
 
     with tab2:
         # List of users that you follow
-        current_users_followed = existing_follow_data.query(f"`Follower ID` == '{st.session_state['username']}' and `Follow Status` == 'Accepted'")
+        current_users_followed = existing_follow_data.query(f"`Follower ID` == '{st.session_state['original_username']}' and `Follow Status` == 'Accepted'")
 
         if current_users_followed.empty is False:
 
@@ -126,11 +133,11 @@ if authentication_status:
                     st.markdown(div, unsafe_allow_html=True)
 
                     # Show Unfollow buttons
-                    innercol1, innercol2 = st.columns([8, 2])
+                    innercol1, innercol2 = st.columns([8, 3])
 
 
                     with innercol2:
-                        unfollow = st.button("Unfollow", key=f"Unfollow_{followed_user}_{index}", type="primary")
+                        unfollow = st.button("UNFOLLOW", key=f"Unfollow_{followed_user}_{index}", type="primary")
                         if unfollow:
                             # Update "Follow Status" to "Declined" in both session state and Google Sheets
                             st.session_state["existing_follow_data"].loc[index, "Follow Status"] = "Declined"
@@ -144,10 +151,8 @@ if authentication_status:
 
 
     with tab3:
-        # with st.form("Search Messages"):
         user_list = existing_user_data["Username"].tolist()
         user_search = st.multiselect("Search User", options=user_list)
-            # search = st.form_submit_button("Search")
 
         st.markdown("---")
         filtered_users = existing_user_data.copy()
@@ -177,8 +182,8 @@ if authentication_status:
                 innercol1, innercol2 = st.columns([7, 3])
 
                 # Show Follow buttons, disabling for own user, followed users, and pending requests
-                button_state = (username == st.session_state["username"]
-                        or st.session_state["existing_follow_data"].query(f"`Follower ID` == '{st.session_state['username']}' "
+                button_state = (username == st.session_state["original_username"]
+                        or st.session_state["existing_follow_data"].query(f"`Follower ID` == '{st.session_state['original_username']}' "
                                                                           f"and (`Followed User` == '{username}' "
                                                                           f"and `Follow Status` in ['Pending', 'Accepted'])").shape[0] > 0
                                                                         )

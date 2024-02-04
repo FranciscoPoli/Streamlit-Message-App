@@ -16,7 +16,7 @@ def create_message(message):
         [
             {
                 "Message ID": message_id,
-                "Username": st.session_state["username"],
+                "Username": st.session_state["original_username"],
                 "Message": message,
                 "Timestamp": timestamp,
                 "Like Count": int(0),
@@ -33,7 +33,7 @@ authentication_status = st.session_state.get("authentication_status", False)
 if authentication_status:
     st.session_state["authenticator"].logout(location="sidebar")
 
-    st.write(f'Username: :blue[{st.session_state["username"]}]')
+    st.write(f'Username: :blue[{st.session_state["original_username"]}]')
 
     tab1, tab2 = st.tabs(["Post a Message", "Your Posts"])
 
@@ -59,7 +59,7 @@ if authentication_status:
             st.success("Message Posted")
 
     with tab2:
-        current_user_messages = st.session_state.get("existing_message_data", []).query(f"Username == '{st.session_state['username']}'")
+        current_user_messages = st.session_state.get("existing_message_data", []).query(f"Username == '{st.session_state['original_username']}'")
 
         if current_user_messages.empty is False:
 
@@ -68,7 +68,7 @@ if authentication_status:
             for message, like_count in zip(messages, like_counts):
                 div = f"""
                 <div class="user-line">
-                    <p><strong>{st.session_state['username']}</strong> <span style="color: white;">posted:</span></p>
+                    <p><strong>{st.session_state['original_username']}</strong> <span style="color: white;">posted:</span></p>
                 </div>          
                     <div class="chat-bubble">
                         <p>{message}</p>
